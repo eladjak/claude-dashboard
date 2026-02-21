@@ -622,6 +622,18 @@
             font-size: 0.75em;
             color: var(--text-dim);
         }
+        .chat-launch-btn {
+            margin-top: 6px;
+            padding: 4px 14px;
+            background: var(--green);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+        .chat-launch-btn:hover { opacity: 0.85; }
         .chat-input-container {
             display: flex;
             gap: 8px;
@@ -1291,8 +1303,8 @@
                 <span class="agent-pulse"></span>
             </div>
             <div class="agent-info">
-                <span class="ai-title">קלוד - העוזר האישי שלך</span>
-                <span class="agent-status" id="agentStatus">מוכן לשיחה</span>
+                <span class="ai-title">עוזר הפרויקטים</span>
+                <span class="agent-status" id="agentStatus">מוכן - הקלד או בחר פרויקט</span>
             </div>
             <button class="agent-refresh" onclick="clearChat()" title="שיחה חדשה">🗑️</button>
         </div>
@@ -1662,22 +1674,24 @@
                 if (msg.project) {
                     const p = msg.project;
                     extra = `
-                        <div class="chat-project-card" onclick="showLaunch('${p.id}')">
-                            <div class="chat-project-header">
+                        <div class="chat-project-card">
+                            <div class="chat-project-header" onclick="showLaunch('${p.id}')">
                                 <span>${p.icon}</span>
                                 <span class="chat-project-name">${p.name}</span>
                             </div>
                             <div class="chat-project-desc">${p.description || ''}</div>
+                            <button class="chat-launch-btn" onclick="chatLaunchProject('${p.id}')">🚀 הפעל</button>
                         </div>`;
                 }
                 if (msg.projects) {
                     extra = msg.projects.map(p => `
-                        <div class="chat-project-card" onclick="showLaunch('${p.id}')">
-                            <div class="chat-project-header">
+                        <div class="chat-project-card">
+                            <div class="chat-project-header" onclick="showLaunch('${p.id}')">
                                 <span>${p.icon}</span>
                                 <span class="chat-project-name">${p.name}</span>
                             </div>
                             <div class="chat-project-desc">${p.description || ''}</div>
+                            <button class="chat-launch-btn" onclick="chatLaunchProject('${p.id}')">🚀 הפעל</button>
                         </div>`).join('');
                 }
                 return `
@@ -1762,13 +1776,17 @@
                 handleNewProjectIntent();
             } else if (lower.includes('שלום') || lower.includes('היי') || lower.includes('בוקר') || lower.includes('ערב')) {
                 sendAgentMessage(getGreeting());
+            } else if (lower.includes('ram') || lower.includes('זיכרון') || lower.includes('שומר') || lower.includes('guardian')) {
+                handleRAMIntent();
+            } else if (lower.includes('אופטימיז') || lower.includes('optimize') || lower.includes('נקה') || lower.includes('cleanup')) {
+                handleOptimizeIntent(lower);
             } else if (lower.includes('תודה') || lower.includes('יופי') || lower.includes('מעולה')) {
                 const responses = ['בכיף! 😊', 'תמיד כאן בשבילך! 💪', 'שמח לעזור! 🌟', 'בהצלחה! 🚀'];
                 sendAgentMessage(responses[Math.floor(Math.random() * responses.length)]);
             } else {
                 // Default - try to be helpful
                 sendAgentMessage('לא בטוח שהבנתי... אפשר לנסות:', {
-                    suggestions: ['על מה לעבוד?', 'הצג פרויקטים', 'תציע משהו', 'מה הסטטוס?']
+                    suggestions: ['על מה לעבוד?', 'הצג פרויקטים', 'מצב זיכרון', 'תציע משהו']
                 });
             }
         }
@@ -1883,9 +1901,56 @@
             });
         }
 
+        async function handleRAMIntent() {
+            try {
+                const res = await fetch('/api/guardian');
+                const data = await res.json();
+                const pct = data.totalRAMMB > 0 ? Math.round((1 - data.freeRAMMB / data.totalRAMMB) * 100) : '?';
+                const status = data.running ? '🟢 פעיל' : '🔴 כבוי';
+                sendAgentMessage(
+                    `📊 מצב זיכרון:\n• RAM פנוי: ${data.freeRAMMB}MB / ${data.totalRAMMB}MB (${pct}% בשימוש)\n• סשנים: ${data.sessionCount || 0}\n• תהליכי MCP: ${data.mcpCount || 0}\n• שומר: ${status}`,
+                    { suggestions: ['אופטימיזציה', 'הרוג זומבים', 'ניקוי'] }
+                );
+            } catch {
+                sendAgentMessage('לא הצלחתי לקבל נתוני זיכרון. הדאשבורד רץ?');
+            }
+        }
+
+        function handleOptimizeIntent(text) {
+            if (text.includes('נקה') || text.includes('cleanup')) {
+                guardianAction('cleanup');
+                sendAgentMessage('⚡ מריץ ניקוי תהליכים... בדוק את לוח השומר למעלה לתוצאות.');
+            } else {
+                guardianAction('optimize');
+                sendAgentMessage('⚡ מריץ אופטימיזציית RAM... זה ייקח כמה שניות.');
+            }
+        }
+
         function handleSuggestion(suggestion) {
             document.getElementById('chatInput').value = suggestion;
             sendChatMessage();
+        }
+
+        function chatLaunchProject(id) {
+            const p = projects.find(x => x.id === id);
+            if (!p || !isLocalServer) {
+                showLaunch(id);
+                return;
+            }
+            // Direct launch via server
+            fetch('/launch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ folder: p.folder, title: p.name })
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    sendAgentMessage(`${p.icon} "${p.name}" הופעל בטרמינל חדש! 🚀`);
+                    showToast(`🚀 ${p.name} הופעל!`);
+                }
+            }).catch(() => {
+                sendAgentMessage('לא הצלחתי להפעיל. נסה מהכפתור בכרטיס:');
+                showLaunch(id);
+            });
         }
 
         function clearChat() {
@@ -2368,10 +2433,18 @@
         function directLaunch() {
             // Try to launch via server
             if (isLocalServer) {
+                // Find the project to send folder + title
+                const titleEl = document.getElementById('cmdTitle');
+                const projectName = titleEl ? titleEl.textContent.replace('הפעל: ', '') : '';
+                const p = projects.find(x => x.name === projectName);
+                const payload = p
+                    ? { folder: p.folder, title: p.name }
+                    : { command: currentCmd };
+
                 fetch('/launch', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ command: currentCmd })
+                    body: JSON.stringify(payload)
                 }).then(() => {
                     showToast('🚀 הפרויקט הופעל!');
                     closeModal('cmdModal');

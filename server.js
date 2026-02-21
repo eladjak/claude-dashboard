@@ -104,11 +104,31 @@ const server = http.createServer(async (req, res) => {
 
                 if (req.url === '/launch') {
                     const cmd = data.command;
-                    // Open new terminal and run command
-                    const minttyCmd = `mintty -e /bin/bash -c "${cmd.replace(/"/g, '\\"')}"`;
-                    exec(minttyCmd, (error) => {
+                    const folder = data.folder || '';
+                    const title = data.title || 'Claude Code';
+
+                    // Use Windows Terminal for launching projects
+                    let launchCmd;
+                    if (folder) {
+                        // Launch Claude Code in a project folder
+                        const winFolder = folder.replace(/\//g, '\\');
+                        launchCmd = `wt new-tab --title "${title}" cmd /k "cd /d ${winFolder} && claude"`;
+                    } else {
+                        // Generic command via bash
+                        const minttyCmd = `mintty -e /bin/bash -c "${cmd.replace(/"/g, '\\"')}"`;
+                        launchCmd = minttyCmd;
+                    }
+
+                    exec(launchCmd, (error) => {
                         if (error) {
-                            console.error('Launch error:', error);
+                            console.error('Launch error:', error.message);
+                            // Fallback: try mintty if wt fails
+                            if (launchCmd.startsWith('wt')) {
+                                const fallback = `mintty -e /bin/bash -c "cd '${folder}' && claude"`;
+                                exec(fallback, (err2) => {
+                                    if (err2) console.error('Fallback launch also failed:', err2.message);
+                                });
+                            }
                         }
                     });
                     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -172,6 +192,12 @@ const server = http.createServer(async (req, res) => {
                         case 'open-claude':
                             cmd = `wt new-tab --title "Claude Code" cmd /k "${path.join(process.env.APPDATA || '', 'npm', 'claude.cmd')}"`;
                             break;
+                        case 'launch-project': {
+                            const folder = (data.folder || '').replace(/\//g, '\\');
+                            const title = data.title || 'Claude Code';
+                            cmd = `wt new-tab --title "${title}" cmd /k "cd /d ${folder} && claude"`;
+                            break;
+                        }
                         default:
                             res.writeHead(400, { 'Content-Type': 'application/json' });
                             res.end(JSON.stringify({ error: 'Unknown action: ' + action }));
