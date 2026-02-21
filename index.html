@@ -1,0 +1,2581 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Dashboard</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0a0a12">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0a0a12;
+            --bg-secondary: #12121a;
+            --card: rgba(255,255,255,0.04);
+            --card-hover: rgba(255,255,255,0.08);
+            --blue: #3b82f6;
+            --purple: #8b5cf6;
+            --green: #10b981;
+            --yellow: #f59e0b;
+            --red: #ef4444;
+            --cyan: #06b6d4;
+            --text: #fff;
+            --text-dim: #64748b;
+            --border: rgba(255,255,255,0.08);
+        }
+
+        .light-mode {
+            --bg: #f5f5f7;
+            --bg-secondary: #ffffff;
+            --card: rgba(0,0,0,0.04);
+            --card-hover: rgba(0,0,0,0.08);
+            --text: #1a1a2e;
+            --text-dim: #64748b;
+            --border: rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 15px;
+            font-size: 14px;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 15px;
+            background: var(--card);
+            border-radius: 12px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .logo { font-size: 1.8em; cursor: pointer; }
+        .header h1 { font-size: 1.3em; font-weight: 600; }
+        .header-stats { display: flex; gap: 15px; flex-wrap: wrap; }
+        .stat { text-align: center; min-width: 50px; }
+        .stat-num { font-size: 1.3em; font-weight: 700; color: var(--blue); }
+        .stat-label { font-size: 0.7em; color: var(--text-dim); }
+
+        .header-controls { display: flex; align-items: center; gap: 10px; }
+        .header-nav { display: flex; gap: 4px; background: var(--bg-secondary); border-radius: 10px; padding: 3px; }
+        .header-nav a, .header-nav span {
+            color: var(--text-dim);
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            transition: all .2s;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .header-nav a:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+        .header-nav .active { color: #fff; background: var(--blue); font-weight: 600; }
+        .theme-toggle {
+            background: var(--card);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+        }
+
+        .sync-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75em;
+            color: var(--text-dim);
+        }
+        .sync-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: pulse 2s infinite;
+        }
+        .sync-dot.error { background: var(--red); animation: none; }
+        .sync-dot.connecting { background: var(--yellow); }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Token Usage */
+        .token-bar {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .token-info { display: flex; align-items: center; gap: 8px; }
+        .token-icon { font-size: 1.2em; }
+        .token-text { font-size: 0.85em; color: var(--text-dim); }
+        .token-amount { color: var(--green); font-weight: 600; }
+        .token-progress {
+            flex: 1;
+            min-width: 100px;
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        .token-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--green), var(--blue));
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        .token-history-btn {
+            background: var(--card);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            padding: 5px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+
+        /* Search & Filters */
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px 15px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--text);
+            font-size: 0.9em;
+        }
+        .search-box::placeholder { color: var(--text-dim); }
+        .search-box:focus { outline: none; border-color: var(--blue); }
+
+        .filter-btn {
+            padding: 10px 15px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s;
+        }
+        .filter-btn:hover, .filter-btn.active {
+            background: var(--blue);
+            color: white;
+            border-color: var(--blue);
+        }
+
+        /* Quick Actions */
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .action-btn {
+            background: linear-gradient(135deg, var(--blue), var(--purple));
+            border: none;
+            color: white;
+            padding: 10px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .action-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(59,130,246,0.3); }
+        .action-btn.secondary { background: var(--card); border: 1px solid var(--border); }
+        .action-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        /* Kanban Board */
+        .kanban-board {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .kanban-column {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 12px;
+            border: 1px solid var(--border);
+            min-height: 200px;
+        }
+        .kanban-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        .kanban-title {
+            font-weight: 600;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .kanban-count {
+            background: var(--card);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.8em;
+            color: var(--text-dim);
+        }
+        .kanban-projects {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-height: 100px;
+        }
+        .kanban-projects.drag-over {
+            background: rgba(59,130,246,0.1);
+            border-radius: 8px;
+        }
+
+        /* Project Card */
+        .project {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+            cursor: grab;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .project:hover {
+            background: var(--card-hover);
+            border-color: var(--blue);
+            transform: translateY(-2px);
+        }
+        .project.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        .project.updated {
+            animation: highlight 1s ease;
+        }
+        @keyframes highlight {
+            0% { border-color: var(--green); box-shadow: 0 0 15px rgba(16,185,129,0.3); }
+            100% { border-color: var(--border); box-shadow: none; }
+        }
+        .project-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .project-icon { font-size: 1.4em; }
+        .project-title { font-weight: 600; font-size: 0.9em; flex: 1; }
+        .project-id {
+            font-size: 0.65em;
+            color: var(--text-dim);
+            background: rgba(255,255,255,0.05);
+            padding: 2px 6px;
+            border-radius: 8px;
+        }
+        .project-desc {
+            color: var(--text-dim);
+            font-size: 0.75em;
+            line-height: 1.4;
+            margin-bottom: 8px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .project-meta {
+            font-size: 0.7em;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+        .project-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .project-category {
+            font-size: 0.65em;
+            padding: 2px 6px;
+            border-radius: 8px;
+        }
+        .cat-business { background: rgba(16,185,129,0.15); color: var(--green); }
+        .cat-development { background: rgba(59,130,246,0.15); color: var(--blue); }
+        .cat-finance { background: rgba(245,158,11,0.15); color: var(--yellow); }
+        .cat-edutech { background: rgba(139,92,246,0.15); color: var(--purple); }
+        .cat-content { background: rgba(239,68,68,0.15); color: var(--red); }
+        .cat-web { background: rgba(6,182,212,0.15); color: var(--cyan); }
+
+        .launch-btn {
+            background: linear-gradient(135deg, var(--blue), var(--purple));
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.75em;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .launch-btn:hover { transform: scale(1.05); }
+
+        /* AI Agent Panel */
+        .agent-panel {
+            background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(59,130,246,0.1));
+            border: 1px solid var(--purple);
+            border-radius: 16px;
+            padding: 18px;
+            margin-bottom: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+        .agent-panel::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .ai-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            position: relative;
+        }
+        .agent-avatar {
+            position: relative;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .agent-face {
+            font-size: 2em;
+            z-index: 1;
+            animation: agentBounce 3s ease-in-out infinite;
+        }
+        @keyframes agentBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+        }
+        .agent-pulse {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: var(--purple);
+            opacity: 0.3;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(0.8); opacity: 0.3; }
+            50% { transform: scale(1.1); opacity: 0.1; }
+        }
+        .agent-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .ai-title { font-weight: 700; font-size: 1em; }
+        .agent-status {
+            font-size: 0.75em;
+            color: var(--text-dim);
+        }
+        .agent-refresh {
+            background: none;
+            border: none;
+            font-size: 1.2em;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: all 0.2s;
+            padding: 5px;
+        }
+        .agent-refresh:hover {
+            opacity: 1;
+            transform: rotate(180deg);
+        }
+        .agent-message-container {
+            min-height: 50px;
+        }
+        .agent-message {
+            color: var(--text);
+            font-size: 0.95em;
+            line-height: 1.6;
+            padding: 12px 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            border-right: 3px solid var(--purple);
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 5px 0;
+        }
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            background: var(--purple);
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-8px); opacity: 1; }
+        }
+        .agent-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .agent-btn {
+            flex: 1;
+            padding: 10px 15px;
+            border-radius: 10px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9em;
+        }
+        .agent-btn.primary {
+            background: linear-gradient(135deg, var(--purple), var(--blue));
+            color: white;
+        }
+        .agent-btn.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(139,92,246,0.4);
+        }
+        .agent-btn.secondary {
+            background: var(--card);
+            color: var(--text-dim);
+            border: 1px solid var(--border);
+        }
+        .agent-btn.secondary:hover {
+            background: var(--card-hover);
+        }
+        .agent-quick-replies {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .quick-reply {
+            background: var(--card);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        /* Chat Interface */
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 280px;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .chat-message {
+            display: flex;
+            gap: 10px;
+            animation: messageIn 0.3s ease;
+        }
+        @keyframes messageIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .chat-message.user {
+            flex-direction: row-reverse;
+        }
+        .chat-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            flex-shrink: 0;
+        }
+        .chat-message.agent .chat-avatar {
+            background: linear-gradient(135deg, var(--purple), var(--blue));
+        }
+        .chat-message.user .chat-avatar {
+            background: var(--green);
+        }
+        .chat-bubble {
+            max-width: 80%;
+            padding: 10px 14px;
+            border-radius: 16px;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        .chat-message.agent .chat-bubble {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px 16px 16px 4px;
+        }
+        .chat-message.user .chat-bubble {
+            background: linear-gradient(135deg, var(--blue), var(--purple));
+            color: white;
+            border-radius: 16px 16px 4px 16px;
+        }
+        .chat-suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .chat-suggestion {
+            background: rgba(139,92,246,0.2);
+            border: 1px solid var(--purple);
+            color: var(--text);
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.75em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .chat-suggestion:hover {
+            background: var(--purple);
+            color: white;
+        }
+        .chat-project-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px;
+            margin-top: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .chat-project-card:hover {
+            border-color: var(--blue);
+            transform: translateY(-2px);
+        }
+        .chat-project-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+        .chat-project-name {
+            font-weight: 600;
+            font-size: 0.85em;
+        }
+        .chat-project-desc {
+            font-size: 0.75em;
+            color: var(--text-dim);
+        }
+        .chat-input-container {
+            display: flex;
+            gap: 8px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border);
+        }
+        .chat-input {
+            flex: 1;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 10px 15px;
+            color: var(--text);
+            font-size: 0.9em;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .chat-input:focus {
+            border-color: var(--purple);
+        }
+        .chat-input::placeholder {
+            color: var(--text-dim);
+        }
+        .chat-send {
+            background: linear-gradient(135deg, var(--purple), var(--blue));
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+            font-size: 1.1em;
+        }
+        .chat-send:hover {
+            transform: scale(1.1);
+        }
+        .chat-send:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .quick-reply:hover {
+            background: var(--purple);
+            border-color: var(--purple);
+            color: white;
+        }
+        .ai-suggestion {
+            background: var(--card);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--green);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            display: none;
+            z-index: 1000;
+            animation: slideIn 0.3s;
+        }
+        .toast.show { display: block; }
+        .toast.error { background: var(--red); }
+        .toast.info { background: var(--blue); }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Notification Bell */
+        .notification-bell {
+            position: relative;
+            background: none;
+            border: none;
+            font-size: 1.4em;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 10px;
+            transition: all 0.2s;
+        }
+        .notification-bell:hover {
+            background: var(--card);
+        }
+        .notification-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: var(--red);
+            color: white;
+            font-size: 0.55em;
+            min-width: 18px;
+            height: 18px;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            animation: badgePop 0.3s ease;
+        }
+        .notification-badge.hidden { display: none; }
+        @keyframes badgePop {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        .notification-bell.ringing {
+            animation: ring 0.5s ease;
+        }
+        @keyframes ring {
+            0%, 100% { transform: rotate(0); }
+            20%, 60% { transform: rotate(15deg); }
+            40%, 80% { transform: rotate(-15deg); }
+        }
+
+        /* Notification Panel */
+        .notification-panel {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 320px;
+            max-height: 400px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            z-index: 1001;
+            display: none;
+            overflow: hidden;
+        }
+        .notification-panel.show { display: block; }
+        .notification-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border);
+            background: var(--card);
+        }
+        .notification-title {
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+        .notification-clear {
+            background: none;
+            border: none;
+            color: var(--blue);
+            font-size: 0.8em;
+            cursor: pointer;
+        }
+        .notification-list {
+            max-height: 320px;
+            overflow-y: auto;
+        }
+        .notification-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .notification-item:hover {
+            background: var(--card);
+        }
+        .notification-item.unread {
+            background: rgba(59,130,246,0.1);
+        }
+        .notification-item.unread::before {
+            content: '';
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 8px;
+            height: 8px;
+            background: var(--blue);
+            border-radius: 50%;
+        }
+        .notification-icon {
+            font-size: 1.5em;
+            flex-shrink: 0;
+        }
+        .notification-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .notification-text {
+            font-size: 0.85em;
+            line-height: 1.4;
+            margin-bottom: 4px;
+        }
+        .notification-time {
+            font-size: 0.7em;
+            color: var(--text-dim);
+        }
+        .notification-empty {
+            padding: 30px;
+            text-align: center;
+            color: var(--text-dim);
+        }
+        .notification-settings {
+            padding: 10px 15px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.8em;
+        }
+        .notification-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .toggle-switch {
+            width: 36px;
+            height: 20px;
+            background: var(--card);
+            border-radius: 10px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .toggle-switch.active {
+            background: var(--green);
+        }
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        .toggle-switch.active::after {
+            transform: translateX(16px);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .modal.show { display: flex; }
+        .modal-content {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 25px;
+            max-width: 500px;
+            width: 100%;
+            border: 1px solid var(--border);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        .modal-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.2em;
+            font-weight: 600;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 1.5em;
+            cursor: pointer;
+        }
+        .modal-body { margin-bottom: 15px; }
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .cmd-box {
+            background: var(--bg);
+            border-radius: 10px;
+            padding: 15px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+            border: 1px solid var(--border);
+            user-select: all;
+            cursor: text;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* Token History Chart */
+        .chart-container {
+            height: 150px;
+            margin: 15px 0;
+            display: flex;
+            align-items: flex-end;
+            gap: 5px;
+            padding: 10px;
+            background: var(--card);
+            border-radius: 10px;
+        }
+        .chart-bar {
+            flex: 1;
+            background: linear-gradient(to top, var(--blue), var(--purple));
+            border-radius: 4px 4px 0 0;
+            min-height: 5px;
+            position: relative;
+        }
+        .chart-bar:hover::after {
+            content: attr(data-value);
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7em;
+        }
+
+        /* Install PWA Banner */
+        .pwa-banner {
+            display: none;
+            background: linear-gradient(135deg, var(--blue), var(--purple));
+            padding: 12px 15px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .pwa-banner.show { display: flex; }
+        .pwa-text { font-weight: 600; }
+        .pwa-btn {
+            background: white;
+            color: var(--blue);
+            border: none;
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* Night Session Banner */
+        .night-session-banner {
+            background: linear-gradient(135deg, rgba(139,92,246,0.12), rgba(6,182,212,0.08));
+            border: 1px solid rgba(139,92,246,0.3);
+            border-radius: 12px;
+            padding: 14px 20px;
+            margin: 10px 0;
+            display: none;
+            align-items: center;
+            gap: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .night-session-banner:hover { border-color: var(--purple); transform: translateY(-1px); }
+        .night-session-banner.visible { display: flex; }
+        .night-banner-icon { font-size: 1.8em; }
+        .night-banner-info { flex: 1; }
+        .night-banner-title { font-weight: 700; font-size: 0.95em; }
+        .night-banner-summary { color: var(--text-dim); font-size: 0.82em; margin-top: 2px; }
+        .night-banner-stats { display: flex; gap: 12px; flex-shrink: 0; }
+        .night-stat { text-align: center; min-width: 50px; }
+        .night-stat .n { font-size: 1.3em; font-weight: 700; }
+        .night-stat .l { font-size: 0.7em; color: var(--text-dim); }
+        .night-stat.agents .n { color: var(--purple); }
+        .night-stat.success .n { color: var(--green); }
+        .night-stat.rate .n { color: var(--cyan); }
+        .night-banner-link { color: var(--purple); font-size: 0.85em; text-decoration: none; font-weight: 600; flex-shrink: 0; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header { flex-direction: column; text-align: center; }
+            .header-stats { justify-content: center; }
+            .kanban-board { grid-template-columns: 1fr; }
+            .controls { flex-direction: column; }
+            .night-session-banner { flex-direction: column; text-align: center; }
+            .night-banner-stats { justify-content: center; }
+        }
+        /* Guardian Panel */
+        .guardian-panel {
+            margin: 8px 16px;
+            background: var(--card);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+        .guardian-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            background: linear-gradient(135deg, rgba(0,150,136,0.15), rgba(0,188,212,0.1));
+            border-bottom: 1px solid var(--border);
+        }
+        .guardian-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        .guardian-icon { font-size: 18px; }
+        .guardian-badge {
+            background: var(--green);
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .guardian-badge.offline { background: var(--red, #f44); }
+        .guardian-ram-bar {
+            flex: 1;
+            height: 8px;
+            background: rgba(128,128,128,0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            min-width: 100px;
+        }
+        .guardian-ram-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease, background 0.5s ease;
+            background: var(--green);
+        }
+        .guardian-ram-fill.warning { background: var(--yellow); }
+        .guardian-ram-fill.critical { background: var(--red, #f44); }
+        .guardian-ram-text {
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            min-width: 70px;
+            text-align: left;
+        }
+        .guardian-body { padding: 12px 16px; }
+        .guardian-stats {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .guardian-stat { text-align: center; flex: 1; min-width: 60px; }
+        .guardian-stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text);
+        }
+        .guardian-stat-label {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+        .guardian-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+        .guardian-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: transform 0.1s, opacity 0.1s;
+            color: #fff;
+        }
+        .guardian-btn:hover { transform: scale(1.05); opacity: 0.9; }
+        .guardian-btn:active { transform: scale(0.95); }
+        .guardian-btn-green { background: #4CAF50; }
+        .guardian-btn-blue { background: #2196F3; }
+        .guardian-btn-cyan { background: #00BCD4; }
+        .guardian-btn-amber { background: #FFC107; color: #333; }
+        .guardian-btn-purple { background: #9C27B0; }
+        .guardian-btn-red { background: #F44336; }
+        .guardian-log {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            font-family: monospace;
+            font-size: 11px;
+            color: var(--text-dim);
+            line-height: 1.4;
+        }
+        .guardian-log.expanded { max-height: 200px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <!-- PWA Install Banner -->
+    <div class="pwa-banner" id="pwaBanner">
+        <span class="pwa-text">📱 התקן כאפליקציה לגישה מהירה</span>
+        <button class="pwa-btn" onclick="installPWA()">התקן</button>
+    </div>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <span class="logo" onclick="location.reload()">🤖</span>
+            <h1>Claude Dashboard</h1>
+            <div class="sync-indicator">
+                <span class="sync-dot" id="syncDot"></span>
+                <span id="syncStatus">מתחבר...</span>
+            </div>
+        </div>
+        <div class="header-stats" id="headerStats">
+            <div class="stat">
+                <div class="stat-num" id="totalProjects">-</div>
+                <div class="stat-label">פרויקטים</div>
+            </div>
+            <div class="stat">
+                <div class="stat-num" style="color: var(--green)" id="activeProjects">-</div>
+                <div class="stat-label">פעילים</div>
+            </div>
+            <div class="stat">
+                <div class="stat-num" style="color: var(--yellow)" id="planningProjects">-</div>
+                <div class="stat-label">בתכנון</div>
+            </div>
+            <div class="stat">
+                <div class="stat-num" style="color: var(--text-dim)" id="pausedProjects">-</div>
+                <div class="stat-label">מושהים</div>
+            </div>
+            <div class="stat">
+                <div class="stat-num" style="color: var(--blue)" id="completedProjects">-</div>
+                <div class="stat-label">הושלמו</div>
+            </div>
+        </div>
+        <div class="header-controls">
+            <!-- Notification Bell -->
+            <div style="position: relative;">
+                <button class="notification-bell" id="notificationBell" onclick="toggleNotifications()" title="התראות">
+                    🔔
+                    <span class="notification-badge hidden" id="notificationBadge">0</span>
+                </button>
+                <div class="notification-panel" id="notificationPanel">
+                    <div class="notification-header">
+                        <span class="notification-title">🔔 התראות</span>
+                        <button class="notification-clear" onclick="clearNotifications()">נקה הכל</button>
+                    </div>
+                    <div class="notification-list" id="notificationList">
+                        <div class="notification-empty">אין התראות חדשות</div>
+                    </div>
+                    <div class="notification-settings">
+                        <span>התראות דפדפן</span>
+                        <div class="notification-toggle">
+                            <div class="toggle-switch" id="pushToggle" onclick="togglePushNotifications()"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="header-nav">
+                <span class="active">📋 קנבן</span>
+                <a href="/brain">🧠 מוח</a>
+                <a href="/reports">📊 דוחות</a>
+                <a href="#" onclick="guardianAction('launch-daily');return false;" title="פתח Claude Code עם 3 פרויקטי יום">🚀 שגר</a>
+                <a href="#" onclick="openFolder('projects');return false;" title="פתח תיקיית פרויקטים">📁 פרויקטים</a>
+            </div>
+            <button class="theme-toggle" onclick="toggleTheme()" title="החלף ערכת נושא">🌙</button>
+        </div>
+    </div>
+
+    <!-- Token Usage -->
+    <div class="token-bar">
+        <div class="token-info">
+            <span class="token-icon">💎</span>
+            <span class="token-text">Max $<span id="tokenLimit">200</span> | נוצל: <span class="token-amount" id="tokenUsed">טוען...</span></span>
+        </div>
+        <div class="token-progress" onclick="showTokenHistory()">
+            <div class="token-fill" id="tokenFill" style="width: 0%"></div>
+        </div>
+        <span class="token-text" id="tokenPercent">-</span>
+        <button class="token-history-btn" onclick="showTokenHistory()">📊 היסטוריה</button>
+    </div>
+
+    <!-- Guardian & System Panel -->
+    <div class="guardian-panel" id="guardianPanel">
+        <div class="guardian-header">
+            <div class="guardian-title">
+                <span class="guardian-icon">🛡️</span>
+                <span>Session Guardian</span>
+                <span class="guardian-badge" id="guardianBadge">--</span>
+            </div>
+            <div class="guardian-ram-bar">
+                <div class="guardian-ram-fill" id="guardianRamFill" style="width: 0%"></div>
+            </div>
+            <span class="guardian-ram-text" id="guardianRamText">טוען...</span>
+        </div>
+        <div class="guardian-body">
+            <div class="guardian-stats">
+                <div class="guardian-stat">
+                    <div class="guardian-stat-value" id="gFreeRAM">--</div>
+                    <div class="guardian-stat-label">RAM חופשי</div>
+                </div>
+                <div class="guardian-stat">
+                    <div class="guardian-stat-value" id="gSessions">--</div>
+                    <div class="guardian-stat-label">Sessions</div>
+                </div>
+                <div class="guardian-stat">
+                    <div class="guardian-stat-value" id="gMCPs">--</div>
+                    <div class="guardian-stat-label">MCPs</div>
+                </div>
+                <div class="guardian-stat">
+                    <div class="guardian-stat-value" id="gLastCheck">--</div>
+                    <div class="guardian-stat-label">עדכון אחרון</div>
+                </div>
+            </div>
+            <div class="guardian-actions">
+                <button class="guardian-btn guardian-btn-green" onclick="guardianAction('launch-daily')" title="הפעל Daily Projects">
+                    <span>▶</span> Daily
+                </button>
+                <button class="guardian-btn guardian-btn-blue" onclick="guardianAction('launch-weekly')" title="הפעל Weekly Projects">
+                    <span>📅</span> Weekly
+                </button>
+                <button class="guardian-btn guardian-btn-cyan" onclick="guardianAction('optimize')" title="אופטימיזציית RAM">
+                    <span>⚡</span> Optimize
+                </button>
+                <button class="guardian-btn guardian-btn-amber" onclick="guardianAction('cleanup')" title="ניקוי תהליכים">
+                    <span>✨</span> Cleanup
+                </button>
+                <button class="guardian-btn guardian-btn-purple" onclick="guardianAction('kill-zombies')" title="הרוג sessions ישנים">
+                    <span>💀</span> Zombies
+                </button>
+                <button class="guardian-btn guardian-btn-red" onclick="guardianAction('kill-all')" title="עצור הכל">
+                    <span>✕</span> Kill All
+                </button>
+            </div>
+            <div class="guardian-log" id="guardianLog"></div>
+        </div>
+    </div>
+
+    <!-- AI Chat Panel -->
+    <div class="ai-panel agent-panel" id="aiPanel">
+        <div class="ai-header">
+            <div class="agent-avatar">
+                <span class="agent-face" id="agentFace">🤖</span>
+                <span class="agent-pulse"></span>
+            </div>
+            <div class="agent-info">
+                <span class="ai-title">קלוד - העוזר האישי שלך</span>
+                <span class="agent-status" id="agentStatus">מוכן לשיחה</span>
+            </div>
+            <button class="agent-refresh" onclick="clearChat()" title="שיחה חדשה">🗑️</button>
+        </div>
+        <div class="chat-container">
+            <div class="chat-messages" id="chatMessages"></div>
+            <div class="chat-input-container">
+                <input type="text" class="chat-input" id="chatInput"
+                       placeholder="שאל אותי משהו... (למשל: על מה לעבוד?)"
+                       onkeypress="if(event.key==='Enter') sendChatMessage()">
+                <button class="chat-send" onclick="sendChatMessage()" id="chatSendBtn">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Night Session Banner -->
+    <div class="night-session-banner" id="nightBanner" onclick="window.location.href='/reports'">
+        <span class="night-banner-icon">🌙</span>
+        <div class="night-banner-info">
+            <div class="night-banner-title" id="nightBannerTitle">טוען סשן לילי...</div>
+            <div class="night-banner-summary" id="nightBannerSummary"></div>
+        </div>
+        <div class="night-banner-stats">
+            <div class="night-stat agents"><div class="n" id="nightAgents">-</div><div class="l">סוכנים</div></div>
+            <div class="night-stat success"><div class="n" id="nightSuccess">-</div><div class="l">הצליחו</div></div>
+            <div class="night-stat rate"><div class="n" id="nightRate">-</div><div class="l">הצלחה</div></div>
+        </div>
+        <a class="night-banner-link" href="/reports">דוחות מלאים &larr;</a>
+    </div>
+
+    <!-- Search & Filters -->
+    <div class="controls">
+        <input type="text" class="search-box" id="searchBox" placeholder="🔍 חפש פרויקט..." oninput="filterProjects()">
+        <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">הכל</button>
+        <button class="filter-btn" data-filter="in_progress" onclick="setFilter('in_progress')">🟢 פעילים</button>
+        <button class="filter-btn" data-filter="planning" onclick="setFilter('planning')">🟡 בתכנון</button>
+        <button class="filter-btn" data-filter="paused" onclick="setFilter('paused')">⏸️ מושהים</button>
+        <button class="filter-btn" data-filter="completed" onclick="setFilter('completed')">🔵 הושלמו</button>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="actions">
+        <button class="action-btn" onclick="launchAll()">🚀 הפעל הכל</button>
+        <button class="action-btn secondary" onclick="addProject()">➕ פרויקט חדש</button>
+        <button class="action-btn secondary" onclick="openRegistry()">📝 ערוך רג'יסטרי</button>
+        <button class="action-btn secondary" onclick="refreshData()">🔄 רענן</button>
+    </div>
+
+    <!-- Kanban Board -->
+    <div class="kanban-board" id="kanbanBoard"></div>
+
+    <!-- Command Modal -->
+    <div class="modal" id="cmdModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span id="cmdIcon">🚀</span>
+                    <span id="cmdTitle">הפעל פרויקט</span>
+                </div>
+                <button class="modal-close" onclick="closeModal('cmdModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="cmd-box" id="cmdBox" onclick="copyCommand()"></div>
+                <p style="color: var(--text-dim); font-size: 0.85em;">
+                    💡 <strong>הפעל טרמינל Git Bash</strong> והדבק את הפקודה (Ctrl+Shift+Insert)
+                </p>
+            </div>
+            <div class="modal-actions">
+                <button class="action-btn secondary" onclick="closeModal('cmdModal')">סגור</button>
+                <button class="action-btn" onclick="copyCommand()">📋 העתק</button>
+                <button class="action-btn" onclick="directLaunch()" style="background: var(--green);">🚀 הפעל ישירות</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Token History Modal -->
+    <div class="modal" id="tokenModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span>📊</span>
+                    <span>היסטוריית שימוש</span>
+                </div>
+                <button class="modal-close" onclick="closeModal('tokenModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="chart-container" id="tokenChart"></div>
+                <div style="display: flex; justify-content: space-between; color: var(--text-dim); font-size: 0.8em;">
+                    <span>7 ימים אחרונים</span>
+                    <span id="tokenAverage">ממוצע: -</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ============ Configuration ============
+        const isLocalServer = window.location.protocol === 'http:' || window.location.protocol === 'https:';
+        const CONFIG = {
+            registryPath: isLocalServer ? '/projects-registry.json' : 'file:///C:/Users/eladj/.claude/projects-registry.json',
+            tokenPath: isLocalServer ? '/token-usage.json' : 'file:///C:/Users/eladj/.claude/token-usage.json',
+            wsUrl: 'ws://localhost:3457',
+            refreshInterval: 5000,
+            maxBudget: 200
+        };
+
+        // ============ State ============
+        let projects = [];
+        let categories = {};
+        let tokenData = { used: 0, limit: 200, history: [] };
+        let lastDataHash = '';
+        let currentCmd = '';
+        let currentFilter = 'all';
+        let suggestedProject = null;
+        let ws = null;
+        let deferredPrompt = null;
+
+        const categoryNames = {
+            business: 'עסקים',
+            development: 'פיתוח',
+            finance: 'פיננסים',
+            edutech: 'EdTech',
+            content: 'תוכן',
+            web: 'אתרים'
+        };
+
+        const statusConfig = {
+            in_progress: { name: 'בעבודה', icon: '🟢', color: 'var(--green)' },
+            active: { name: 'פעיל', icon: '🟢', color: 'var(--green)' },
+            planning: { name: 'בתכנון', icon: '🟡', color: 'var(--yellow)' },
+            not_started: { name: 'לא התחיל', icon: '⚪', color: 'var(--text-dim)' },
+            completed: { name: 'הושלם', icon: '🔵', color: 'var(--blue)' },
+            paused: { name: 'מושהה', icon: '🔴', color: 'var(--red)' }
+        };
+
+        // ============ PWA ============
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('pwaBanner').classList.add('show');
+        });
+
+        function installPWA() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((result) => {
+                    if (result.outcome === 'accepted') {
+                        showToast('📱 האפליקציה הותקנה!');
+                    }
+                    deferredPrompt = null;
+                    document.getElementById('pwaBanner').classList.remove('show');
+                });
+            }
+        }
+
+        // ============ Theme ============
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            const btn = document.querySelector('.theme-toggle');
+            btn.textContent = document.body.classList.contains('light-mode') ? '☀️' : '🌙';
+            localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+        }
+
+        // Load saved theme
+        if (localStorage.getItem('theme') === 'light') {
+            document.body.classList.add('light-mode');
+            document.querySelector('.theme-toggle').textContent = '☀️';
+        }
+
+        // ============ Data Fetching ============
+        function simpleHash(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                hash = hash & hash;
+            }
+            return hash.toString();
+        }
+
+        async function fetchJSON(url) {
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('GET', url, true);
+                xhr.onload = function() {
+                    if (xhr.status === 200 || xhr.status === 0) {
+                        try { resolve(JSON.parse(xhr.responseText)); }
+                        catch (e) { reject(e); }
+                    } else { reject(new Error('Failed')); }
+                };
+                xhr.onerror = reject;
+                xhr.send();
+            });
+        }
+
+        // ============ WebSocket ============
+        function connectWebSocket() {
+            if (!isLocalServer) return;
+
+            try {
+                ws = new WebSocket(CONFIG.wsUrl);
+
+                ws.onopen = () => {
+                    document.getElementById('syncDot').classList.remove('error', 'connecting');
+                    document.getElementById('syncStatus').textContent = 'מחובר (WebSocket)';
+                };
+
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'update') {
+                        projects = data.projects || projects;
+                        tokenData = data.tokens || tokenData;
+                        updateUI();
+                        showToast('🔄 עודכן בזמן אמת');
+                    }
+                };
+
+                ws.onclose = () => {
+                    document.getElementById('syncDot').classList.add('connecting');
+                    document.getElementById('syncStatus').textContent = 'מתחבר מחדש...';
+                    setTimeout(connectWebSocket, 3000);
+                };
+
+                ws.onerror = () => {
+                    // Fall back to polling
+                    ws = null;
+                };
+            } catch (e) {
+                // WebSocket not available, use polling
+            }
+        }
+
+        // ============ Refresh Data ============
+        async function refreshData() {
+            try {
+                const [registryData, tokenResponse] = await Promise.all([
+                    fetchJSON(CONFIG.registryPath),
+                    fetchJSON(CONFIG.tokenPath).catch(() => ({ used: 0, limit: 200, history: [] }))
+                ]);
+
+                const newHash = simpleHash(JSON.stringify(registryData.projects));
+                const hasChanged = newHash !== lastDataHash;
+
+                let changedIds = [];
+                if (hasChanged && projects.length > 0) {
+                    const oldMap = new Map(projects.map(p => [p.id, JSON.stringify(p)]));
+                    changedIds = registryData.projects
+                        .filter(p => oldMap.get(p.id) !== JSON.stringify(p))
+                        .map(p => p.id);
+                }
+
+                projects = registryData.projects || [];
+                categories = registryData.categories || {};
+                tokenData = tokenResponse;
+                lastDataHash = newHash;
+
+                updateUI(changedIds);
+
+                document.getElementById('syncDot').classList.remove('error', 'connecting');
+                document.getElementById('syncStatus').textContent = `סונכרן: ${new Date().toLocaleTimeString('he-IL')}`;
+
+                if (hasChanged && changedIds.length > 0) {
+                    showToast(`🔄 ${changedIds.length} פרויקטים עודכנו`);
+                }
+
+            } catch (error) {
+                console.error('Refresh failed:', error);
+                document.getElementById('syncDot').classList.add('error');
+                document.getElementById('syncStatus').textContent = 'שגיאת סנכרון';
+            }
+        }
+
+        // ============ Update UI ============
+        function updateUI(changedIds = []) {
+            updateStats();
+            updateTokenDisplay();
+            renderKanban(changedIds);
+            updateAIRecommendation();
+        }
+
+        function updateStats() {
+            const total = projects.length;
+            const active = projects.filter(p => p.status === 'in_progress' || p.status === 'active').length;
+            const planning = projects.filter(p => p.status === 'planning' || p.status === 'in_negotiation' || p.status === 'not_started').length;
+            const completed = projects.filter(p => p.status === 'completed' || p.status === 'deployed' || p.status === 'merged').length;
+            const paused = projects.filter(p => p.status === 'paused' || p.status === 'stable').length;
+
+            document.getElementById('totalProjects').textContent = total;
+            document.getElementById('activeProjects').textContent = active;
+            document.getElementById('planningProjects').textContent = planning;
+            document.getElementById('pausedProjects').textContent = paused;
+            document.getElementById('completedProjects').textContent = completed;
+        }
+
+        function updateTokenDisplay() {
+            const used = tokenData.used || 0;
+            const limit = tokenData.limit || CONFIG.maxBudget;
+            const percent = Math.round((used / limit) * 100);
+
+            document.getElementById('tokenUsed').textContent = `$${used}`;
+            document.getElementById('tokenLimit').textContent = limit;
+            document.getElementById('tokenPercent').textContent = `${percent}%`;
+            document.getElementById('tokenFill').style.width = `${percent}%`;
+
+            const fill = document.getElementById('tokenFill');
+            if (percent >= 80) {
+                fill.style.background = 'linear-gradient(90deg, var(--yellow), var(--red))';
+            } else if (percent >= 50) {
+                fill.style.background = 'linear-gradient(90deg, var(--green), var(--yellow))';
+            } else {
+                fill.style.background = 'linear-gradient(90deg, var(--green), var(--blue))';
+            }
+        }
+
+        // ============ Chat System ============
+        let chatHistory = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+        let isTyping = false;
+
+        function initChat() {
+            renderChatHistory();
+            if (chatHistory.length === 0) {
+                // Send initial greeting
+                setTimeout(() => sendAgentMessage(getGreeting()), 500);
+            }
+        }
+
+        function getGreeting() {
+            const hour = new Date().getHours();
+            const activeCount = projects.filter(p => p.status === 'in_progress' || p.status === 'active').length;
+
+            if (hour >= 5 && hour < 12) {
+                return `בוקר טוב! ☀️ יש לך ${activeCount} פרויקטים פעילים. על מה נעבוד היום?`;
+            } else if (hour >= 12 && hour < 17) {
+                return `צהריים טובים! 💪 איך אפשר לעזור? יש ${activeCount} פרויקטים שמחכים.`;
+            } else if (hour >= 17 && hour < 22) {
+                return `ערב טוב! 🌅 רוצה להתקדם עם משהו לפני סוף היום?`;
+            } else {
+                return `היי! 🌙 עדיין פה? אני מעריך את המסירות. במה אוכל לעזור?`;
+            }
+        }
+
+        function updateAIRecommendation() {
+            initChat();
+        }
+
+        function renderChatHistory() {
+            const container = document.getElementById('chatMessages');
+            container.innerHTML = chatHistory.map(msg => renderChatMessage(msg)).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function renderChatMessage(msg) {
+            if (msg.type === 'user') {
+                return `
+                    <div class="chat-message user">
+                        <div class="chat-avatar">👤</div>
+                        <div class="chat-bubble">${msg.text}</div>
+                    </div>`;
+            } else {
+                let extra = '';
+                if (msg.suggestions) {
+                    extra = `<div class="chat-suggestions">
+                        ${msg.suggestions.map(s => `<button class="chat-suggestion" onclick="handleSuggestion('${s}')">${s}</button>`).join('')}
+                    </div>`;
+                }
+                if (msg.project) {
+                    const p = msg.project;
+                    extra = `
+                        <div class="chat-project-card" onclick="showLaunch('${p.id}')">
+                            <div class="chat-project-header">
+                                <span>${p.icon}</span>
+                                <span class="chat-project-name">${p.name}</span>
+                            </div>
+                            <div class="chat-project-desc">${p.description || ''}</div>
+                        </div>`;
+                }
+                if (msg.projects) {
+                    extra = msg.projects.map(p => `
+                        <div class="chat-project-card" onclick="showLaunch('${p.id}')">
+                            <div class="chat-project-header">
+                                <span>${p.icon}</span>
+                                <span class="chat-project-name">${p.name}</span>
+                            </div>
+                            <div class="chat-project-desc">${p.description || ''}</div>
+                        </div>`).join('');
+                }
+                return `
+                    <div class="chat-message agent">
+                        <div class="chat-avatar">🤖</div>
+                        <div class="chat-bubble">${msg.text}${extra}</div>
+                    </div>`;
+            }
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!text || isTyping) return;
+
+            // Add user message
+            addChatMessage('user', text);
+            input.value = '';
+
+            // Process and respond
+            processUserMessage(text);
+        }
+
+        function addChatMessage(type, text, extra = {}) {
+            const msg = { type, text, time: Date.now(), ...extra };
+            chatHistory.push(msg);
+            if (chatHistory.length > 100) chatHistory = chatHistory.slice(-100);
+            localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+
+            const container = document.getElementById('chatMessages');
+            container.innerHTML += renderChatMessage(msg);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function sendAgentMessage(text, extra = {}) {
+            isTyping = true;
+            document.getElementById('agentStatus').textContent = 'מקליד...';
+            document.getElementById('agentFace').textContent = '🤔';
+
+            // Show typing indicator
+            const container = document.getElementById('chatMessages');
+            container.innerHTML += `
+                <div class="chat-message agent" id="typingIndicator">
+                    <div class="chat-avatar">🤖</div>
+                    <div class="chat-bubble"><span class="typing-indicator"><span></span><span></span><span></span></span></div>
+                </div>`;
+            container.scrollTop = container.scrollHeight;
+
+            setTimeout(() => {
+                document.getElementById('typingIndicator')?.remove();
+                addChatMessage('agent', text, extra);
+                document.getElementById('agentStatus').textContent = 'מוכן לשיחה';
+                document.getElementById('agentFace').textContent = '🤖';
+                isTyping = false;
+            }, 600 + Math.random() * 400);
+        }
+
+        function processUserMessage(text) {
+            const lower = text.toLowerCase();
+
+            // Find project by name
+            const matchedProject = projects.find(p =>
+                lower.includes(p.name.toLowerCase()) ||
+                (p.description && lower.includes(p.description.toLowerCase()))
+            );
+
+            if (matchedProject) {
+                sendAgentMessage(`מצאתי את "${matchedProject.name}"! לחץ כדי להפעיל:`, { project: matchedProject });
+                return;
+            }
+
+            // Intent detection
+            if (lower.includes('עבוד') || lower.includes('התחל') || lower.includes('פתח') || lower.includes('הפעל')) {
+                handleWorkIntent(lower);
+            } else if (lower.includes('מה יש') || lower.includes('פרויקטים') || lower.includes('רשימה') || lower.includes('הצג')) {
+                handleListIntent(lower);
+            } else if (lower.includes('עזור') || lower.includes('תציע') || lower.includes('המלצה') || lower.includes('מה לעשות')) {
+                handleSuggestIntent();
+            } else if (lower.includes('סטטוס') || lower.includes('מצב') || lower.includes('איפה אני')) {
+                handleStatusIntent();
+            } else if (lower.includes('חדש') || lower.includes('ליצור') || lower.includes('להוסיף')) {
+                handleNewProjectIntent();
+            } else if (lower.includes('שלום') || lower.includes('היי') || lower.includes('בוקר') || lower.includes('ערב')) {
+                sendAgentMessage(getGreeting());
+            } else if (lower.includes('תודה') || lower.includes('יופי') || lower.includes('מעולה')) {
+                const responses = ['בכיף! 😊', 'תמיד כאן בשבילך! 💪', 'שמח לעזור! 🌟', 'בהצלחה! 🚀'];
+                sendAgentMessage(responses[Math.floor(Math.random() * responses.length)]);
+            } else {
+                // Default - try to be helpful
+                sendAgentMessage('לא בטוח שהבנתי... אפשר לנסות:', {
+                    suggestions: ['על מה לעבוד?', 'הצג פרויקטים', 'תציע משהו', 'מה הסטטוס?']
+                });
+            }
+        }
+
+        function handleWorkIntent(text) {
+            const activeProjects = projects.filter(p => p.status === 'in_progress' || p.status === 'active');
+
+            if (activeProjects.length === 0) {
+                sendAgentMessage('אין פרויקטים פעילים כרגע. רוצה להתחיל אחד חדש?', {
+                    suggestions: ['הצג בתכנון', 'תציע משהו', 'פרויקט חדש']
+                });
+                return;
+            }
+
+            if (activeProjects.length === 1) {
+                sendAgentMessage(`יש לך פרויקט פעיל אחד - "${activeProjects[0].name}". נתחיל?`, {
+                    project: activeProjects[0]
+                });
+            } else {
+                // Find most relevant
+                const stale = activeProjects
+                    .filter(p => p.lastSession)
+                    .sort((a, b) => new Date(a.lastSession) - new Date(b.lastSession));
+
+                if (stale.length > 0) {
+                    const oldest = stale[0];
+                    const days = Math.floor((Date.now() - new Date(oldest.lastSession)) / 86400000);
+                    sendAgentMessage(`"${oldest.name}" לא קיבל תשומת לב כבר ${days} ימים. אולי נתחיל איתו?`, {
+                        project: oldest
+                    });
+                } else {
+                    sendAgentMessage('הנה הפרויקטים הפעילים שלך:', {
+                        projects: activeProjects.slice(0, 3)
+                    });
+                }
+            }
+        }
+
+        function handleListIntent(text) {
+            if (text.includes('פעיל') || text.includes('בעבודה')) {
+                const active = projects.filter(p => p.status === 'in_progress' || p.status === 'active');
+                if (active.length === 0) {
+                    sendAgentMessage('אין פרויקטים פעילים כרגע.');
+                } else {
+                    sendAgentMessage(`${active.length} פרויקטים פעילים:`, { projects: active.slice(0, 5) });
+                }
+            } else if (text.includes('תכנון')) {
+                const planning = projects.filter(p => p.status === 'planning');
+                if (planning.length === 0) {
+                    sendAgentMessage('אין פרויקטים בתכנון.');
+                } else {
+                    sendAgentMessage(`${planning.length} פרויקטים בתכנון:`, { projects: planning.slice(0, 5) });
+                }
+            } else if (text.includes('הושלם') || text.includes('סיימתי')) {
+                const completed = projects.filter(p => p.status === 'completed');
+                sendAgentMessage(`יש ${completed.length} פרויקטים שהושלמו! 🎉`);
+            } else {
+                sendAgentMessage(`יש לך ${projects.length} פרויקטים בסך הכל:`, {
+                    suggestions: ['פעילים', 'בתכנון', 'הושלמו']
+                });
+            }
+        }
+
+        function handleSuggestIntent() {
+            const now = new Date();
+
+            // Find stale projects
+            const stale = projects.filter(p => {
+                if (!p.lastSession || p.status === 'completed' || p.status === 'paused') return false;
+                return (now - new Date(p.lastSession)) / 86400000 > 5;
+            });
+
+            if (stale.length > 0) {
+                const pick = stale[Math.floor(Math.random() * stale.length)];
+                const days = Math.floor((now - new Date(pick.lastSession)) / 86400000);
+                sendAgentMessage(`מה דעתך על "${pick.name}"? לא נגעת בו ${days} ימים ונראה שזה משהו טוב!`, {
+                    project: pick
+                });
+            } else {
+                const active = projects.filter(p => p.status === 'in_progress' || p.status === 'active');
+                if (active.length > 0) {
+                    const pick = active[Math.floor(Math.random() * active.length)];
+                    sendAgentMessage(`בוא נמשיך עם "${pick.name}"!`, { project: pick });
+                } else {
+                    const planning = projects.filter(p => p.status === 'planning');
+                    if (planning.length > 0) {
+                        sendAgentMessage('יש כמה פרויקטים בתכנון שמחכים לך:', {
+                            projects: planning.slice(0, 3)
+                        });
+                    } else {
+                        sendAgentMessage('כל הפרויקטים מטופלים! רוצה להתחיל משהו חדש?', {
+                            suggestions: ['פרויקט חדש', 'שדרג מגיטהאב', 'אולי מחר']
+                        });
+                    }
+                }
+            }
+        }
+
+        function handleStatusIntent() {
+            const active = projects.filter(p => p.status === 'in_progress' || p.status === 'active').length;
+            const planning = projects.filter(p => p.status === 'planning').length;
+            const completed = projects.filter(p => p.status === 'completed').length;
+
+            sendAgentMessage(`📊 סטטוס: ${active} פעילים, ${planning} בתכנון, ${completed} הושלמו. סך הכל ${projects.length} פרויקטים!`, {
+                suggestions: ['הצג פעילים', 'על מה לעבוד?', 'תציע משהו']
+            });
+        }
+
+        function handleNewProjectIntent() {
+            sendAgentMessage('רוצה ליצור פרויקט חדש? תוכל לערוך את הרג\'יסטרי ישירות:', {
+                suggestions: ['פתח רג\'יסטרי', 'אולי אחר כך']
+            });
+        }
+
+        function handleSuggestion(suggestion) {
+            document.getElementById('chatInput').value = suggestion;
+            sendChatMessage();
+        }
+
+        function clearChat() {
+            chatHistory = [];
+            localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+            document.getElementById('chatMessages').innerHTML = '';
+            setTimeout(() => sendAgentMessage(getGreeting()), 300);
+            showToast('🗑️ השיחה נוקתה');
+        }
+
+        function launchSuggested() {
+            if (suggestedProject) showLaunch(suggestedProject.id);
+        }
+
+        // ============ Notification System ============
+        let notifications = JSON.parse(localStorage.getItem('dashboardNotifications') || '[]');
+        let pushEnabled = localStorage.getItem('pushNotificationsEnabled') === 'true';
+        let lastNotificationCheck = localStorage.getItem('lastNotificationCheck') || null;
+
+        function initNotifications() {
+            updateNotificationBadge();
+            updatePushToggle();
+            renderNotifications();
+            checkForNewNotifications();
+
+            // Check for notifications every minute
+            setInterval(checkForNewNotifications, 60000);
+        }
+
+        function toggleNotifications() {
+            const panel = document.getElementById('notificationPanel');
+            panel.classList.toggle('show');
+
+            // Mark as read when opening
+            if (panel.classList.contains('show')) {
+                notifications.forEach(n => n.read = true);
+                saveNotifications();
+                updateNotificationBadge();
+            }
+        }
+
+        function updateNotificationBadge() {
+            const badge = document.getElementById('notificationBadge');
+            const unreadCount = notifications.filter(n => !n.read).length;
+
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
+                badge.classList.remove('hidden');
+                document.getElementById('notificationBell').classList.add('ringing');
+                setTimeout(() => {
+                    document.getElementById('notificationBell').classList.remove('ringing');
+                }, 500);
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function renderNotifications() {
+            const list = document.getElementById('notificationList');
+
+            if (notifications.length === 0) {
+                list.innerHTML = '<div class="notification-empty">🔕 אין התראות חדשות</div>';
+                return;
+            }
+
+            list.innerHTML = notifications
+                .sort((a, b) => new Date(b.time) - new Date(a.time))
+                .slice(0, 20)
+                .map(n => `
+                    <div class="notification-item ${n.read ? '' : 'unread'}" onclick="handleNotificationClick('${n.id}')">
+                        <span class="notification-icon">${n.icon}</span>
+                        <div class="notification-content">
+                            <div class="notification-text">${n.message}</div>
+                            <div class="notification-time">${formatTimeAgo(n.time)}</div>
+                        </div>
+                    </div>
+                `).join('');
+        }
+
+        function formatTimeAgo(time) {
+            const diff = Date.now() - new Date(time).getTime();
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+
+            if (minutes < 1) return 'עכשיו';
+            if (minutes < 60) return `לפני ${minutes} דקות`;
+            if (hours < 24) return `לפני ${hours} שעות`;
+            return `לפני ${days} ימים`;
+        }
+
+        function addNotification(icon, message, type = 'info', projectId = null) {
+            const notification = {
+                id: Date.now().toString(),
+                icon,
+                message,
+                type,
+                projectId,
+                time: new Date().toISOString(),
+                read: false
+            };
+
+            notifications.unshift(notification);
+            if (notifications.length > 50) notifications = notifications.slice(0, 50);
+            saveNotifications();
+            updateNotificationBadge();
+            renderNotifications();
+
+            // Show browser notification if enabled
+            if (pushEnabled && Notification.permission === 'granted') {
+                showBrowserNotification(icon, message);
+            }
+        }
+
+        function showBrowserNotification(icon, message) {
+            const notification = new Notification('Claude Dashboard', {
+                body: message,
+                icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🤖</text></svg>',
+                badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🔔</text></svg>',
+                tag: 'claude-dashboard',
+                renotify: true
+            });
+
+            notification.onclick = () => {
+                window.focus();
+                notification.close();
+            };
+
+            setTimeout(() => notification.close(), 5000);
+        }
+
+        function handleNotificationClick(notificationId) {
+            const notification = notifications.find(n => n.id === notificationId);
+            if (notification) {
+                notification.read = true;
+                saveNotifications();
+
+                if (notification.projectId) {
+                    showLaunch(notification.projectId);
+                }
+
+                toggleNotifications();
+            }
+        }
+
+        function clearNotifications() {
+            notifications = [];
+            saveNotifications();
+            renderNotifications();
+            updateNotificationBadge();
+            showToast('🗑️ ההתראות נוקו');
+        }
+
+        function saveNotifications() {
+            localStorage.setItem('dashboardNotifications', JSON.stringify(notifications));
+        }
+
+        function togglePushNotifications() {
+            if (!pushEnabled) {
+                // Request permission
+                if ('Notification' in window) {
+                    Notification.requestPermission().then(permission => {
+                        if (permission === 'granted') {
+                            pushEnabled = true;
+                            localStorage.setItem('pushNotificationsEnabled', 'true');
+                            updatePushToggle();
+                            showToast('🔔 התראות דפדפן הופעלו!');
+                            addNotification('✅', 'התראות דפדפן הופעלו! תקבל עדכונים גם כשהדשבורד סגור.', 'system');
+                        } else {
+                            showToast('⚠️ ההרשאה נדחתה', true);
+                        }
+                    });
+                }
+            } else {
+                pushEnabled = false;
+                localStorage.setItem('pushNotificationsEnabled', 'false');
+                updatePushToggle();
+                showToast('🔕 התראות דפדפן כובו');
+            }
+        }
+
+        function updatePushToggle() {
+            const toggle = document.getElementById('pushToggle');
+            if (pushEnabled && Notification.permission === 'granted') {
+                toggle.classList.add('active');
+            } else {
+                toggle.classList.remove('active');
+            }
+        }
+
+        function checkForNewNotifications() {
+            const now = new Date();
+            const lastCheck = lastNotificationCheck ? new Date(lastNotificationCheck) : null;
+
+            // Check stale projects
+            projects.forEach(p => {
+                if (!p.lastSession || p.status === 'completed' || p.status === 'paused') return;
+
+                const daysSince = Math.floor((now - new Date(p.lastSession)) / 86400000);
+
+                // Notify for projects not touched in 7+ days
+                if (daysSince >= 7) {
+                    const notificationKey = `stale_${p.id}_${Math.floor(daysSince / 7)}`;
+                    if (!notifications.find(n => n.id === notificationKey)) {
+                        addNotification(
+                            p.icon,
+                            `"${p.name}" לא קיבל תשומת לב כבר ${daysSince} ימים. אולי הגיע הזמן לחזור אליו?`,
+                            'reminder',
+                            p.id
+                        );
+                        // Override the auto-generated ID
+                        notifications[0].id = notificationKey;
+                        saveNotifications();
+                    }
+                }
+            });
+
+            // Daily motivation (once per day)
+            const today = now.toISOString().split('T')[0];
+            const motivationKey = `daily_${today}`;
+            if (!notifications.find(n => n.id === motivationKey)) {
+                const hour = now.getHours();
+                if (hour >= 8 && hour <= 10) {
+                    const activeCount = projects.filter(p => p.status === 'in_progress' || p.status === 'active').length;
+                    const motivations = [
+                        `בוקר טוב! יש לך ${activeCount} פרויקטים פעילים. מוכן ליום פרודוקטיבי?`,
+                        `יום חדש, הזדמנויות חדשות! ${activeCount} פרויקטים מחכים לך.`,
+                        `☀️ בוקר של יצירה! על מה נעבוד היום?`
+                    ];
+                    addNotification('🌅', motivations[Math.floor(Math.random() * motivations.length)], 'motivation');
+                    notifications[0].id = motivationKey;
+                    saveNotifications();
+                }
+            }
+
+            // Weekend reminder (Friday afternoon)
+            if (now.getDay() === 5 && now.getHours() >= 14 && now.getHours() <= 16) {
+                const weekendKey = `weekend_${today}`;
+                if (!notifications.find(n => n.id === weekendKey)) {
+                    addNotification('🎉', 'סוף שבוע בפתח! אולי נסגור משהו קטן לפני?', 'reminder');
+                    notifications[0].id = weekendKey;
+                    saveNotifications();
+                }
+            }
+
+            localStorage.setItem('lastNotificationCheck', now.toISOString());
+        }
+
+        // Close notification panel when clicking outside
+        document.addEventListener('click', (e) => {
+            const panel = document.getElementById('notificationPanel');
+            const bell = document.getElementById('notificationBell');
+            if (panel.classList.contains('show') && !panel.contains(e.target) && !bell.contains(e.target)) {
+                panel.classList.remove('show');
+            }
+        });
+
+        // ============ Kanban Rendering ============
+        function renderKanban(changedIds = []) {
+            const board = document.getElementById('kanbanBoard');
+            const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+
+            // Filter projects
+            let filtered = projects;
+            if (searchTerm) {
+                filtered = filtered.filter(p =>
+                    p.name.toLowerCase().includes(searchTerm) ||
+                    p.description.toLowerCase().includes(searchTerm)
+                );
+            }
+            if (currentFilter !== 'all') {
+                const filterGroups = {
+                    'in_progress': ['in_progress', 'active'],
+                    'planning': ['planning', 'in_negotiation', 'not_started'],
+                    'paused': ['paused', 'stable'],
+                    'completed': ['completed', 'deployed', 'merged']
+                };
+                const group = filterGroups[currentFilter] || [currentFilter];
+                filtered = filtered.filter(p => group.includes(p.status));
+            }
+
+            // Group by status - map all real statuses to kanban columns
+            const columns = {
+                'in_progress': { title: 'בעבודה', icon: '🟢', projects: [] },
+                'planning': { title: 'בתכנון / משא ומתן', icon: '🟡', projects: [] },
+                'paused': { title: 'מושהה / יציב', icon: '⏸️', projects: [] },
+                'completed': { title: 'הושלם / פרוס', icon: '🔵', projects: [] }
+            };
+
+            // Map real statuses to kanban columns
+            const statusMap = {
+                'in_progress': 'in_progress',
+                'active': 'in_progress',
+                'planning': 'planning',
+                'in_negotiation': 'planning',
+                'not_started': 'planning',
+                'paused': 'paused',
+                'stable': 'paused',
+                'completed': 'completed',
+                'deployed': 'completed',
+                'merged': 'completed'
+            };
+
+            filtered.forEach(p => {
+                const col = statusMap[p.status] || 'in_progress';
+                columns[col].projects.push(p);
+            });
+
+            board.innerHTML = Object.entries(columns).map(([status, col]) => `
+                <div class="kanban-column" data-status="${status}">
+                    <div class="kanban-header">
+                        <span class="kanban-title">${col.icon} ${col.title}</span>
+                        <span class="kanban-count">${col.projects.length}</span>
+                    </div>
+                    <div class="kanban-projects"
+                         ondragover="handleDragOver(event)"
+                         ondrop="handleDrop(event, '${status}')"
+                         ondragleave="handleDragLeave(event)">
+                        ${col.projects.map(p => renderProjectCard(p, changedIds.includes(p.id))).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderProjectCard(p, isUpdated) {
+            const catName = categoryNames[p.category] || p.category;
+            const lastSession = p.lastSession ? `📅 ${p.lastSession}` : '';
+            const statusLabels = {
+                in_progress: '🟢 בעבודה', active: '🟢 פעיל',
+                planning: '🟡 בתכנון', in_negotiation: '🟠 משא ומתן', not_started: '⚪ לא התחיל',
+                paused: '⏸️ מושהה', stable: '✅ יציב',
+                completed: '🔵 הושלם', deployed: '🚀 פרוס', merged: '🔗 מוזג'
+            };
+            const statusLabel = statusLabels[p.status] || p.status;
+
+            return `
+                <div class="project ${isUpdated ? 'updated' : ''}"
+                     draggable="true"
+                     ondragstart="handleDragStart(event, ${p.id})"
+                     ondragend="handleDragEnd(event)"
+                     onclick="showLaunch(${p.id})">
+                    <div class="project-header">
+                        <span class="project-icon">${p.icon}</span>
+                        <span class="project-title">${p.name}</span>
+                        <span class="project-id">#${p.id}</span>
+                    </div>
+                    <div class="project-desc">${p.description}</div>
+                    ${lastSession ? `<div class="project-meta">${lastSession} &nbsp;|&nbsp; ${statusLabel}</div>` : `<div class="project-meta">${statusLabel}</div>`}
+                    <div class="project-footer">
+                        <span class="project-category cat-${p.category}">${catName}</span>
+                        <button class="launch-btn" onclick="event.stopPropagation(); showLaunch(${p.id})">🚀</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ============ Drag & Drop ============
+        let draggedProjectId = null;
+
+        function handleDragStart(event, id) {
+            draggedProjectId = id;
+            event.target.classList.add('dragging');
+            event.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragEnd(event) {
+            event.target.classList.remove('dragging');
+            document.querySelectorAll('.kanban-projects').forEach(el => el.classList.remove('drag-over'));
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDragLeave(event) {
+            event.currentTarget.classList.remove('drag-over');
+        }
+
+        function handleDrop(event, newStatus) {
+            event.preventDefault();
+            event.currentTarget.classList.remove('drag-over');
+
+            if (draggedProjectId !== null) {
+                const project = projects.find(p => p.id === draggedProjectId);
+                if (project && project.status !== newStatus) {
+                    project.status = newStatus;
+                    project.lastSession = new Date().toISOString().split('T')[0];
+
+                    // Save to file (via server)
+                    saveProjects();
+                    renderKanban([draggedProjectId]);
+                    showToast(`📋 "${project.name}" הועבר ל-${statusConfig[newStatus]?.name || newStatus}`);
+                }
+            }
+            draggedProjectId = null;
+        }
+
+        async function saveProjects() {
+            if (!isLocalServer) return;
+
+            try {
+                await fetch('/save-registry', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ projects, categories })
+                });
+            } catch (e) {
+                console.log('Save via server not available');
+            }
+        }
+
+        // ============ Filters ============
+        function setFilter(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.filter === filter);
+            });
+            renderKanban();
+        }
+
+        function filterProjects() {
+            renderKanban();
+        }
+
+        // ============ Modals ============
+        function showLaunch(id) {
+            const p = projects.find(x => x.id === id);
+            if (!p) return;
+
+            const folder = p.folder.replace(/\\/g, '/').replace('C:', '/c');
+            currentCmd = `cd "${folder}" && claude "${p.prompt || 'קרא את CLAUDE.md והמשך מהנקודה שעצרנו'}"`;
+
+            document.getElementById('cmdIcon').textContent = p.icon;
+            document.getElementById('cmdTitle').textContent = `הפעל: ${p.name}`;
+            document.getElementById('cmdBox').textContent = currentCmd;
+            document.getElementById('cmdModal').classList.add('show');
+        }
+
+        function showTokenHistory() {
+            const chart = document.getElementById('tokenChart');
+            const history = tokenData.history || [];
+
+            // Generate last 7 days
+            const days = [];
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0];
+                const dayData = history.find(h => h.date === dateStr);
+                days.push({ date: dateStr, amount: dayData?.amount || 0 });
+            }
+
+            const max = Math.max(...days.map(d => d.amount), 10);
+
+            chart.innerHTML = days.map(d => `
+                <div class="chart-bar"
+                     style="height: ${(d.amount / max) * 100}%"
+                     data-value="$${d.amount}"
+                     title="${d.date}: $${d.amount}">
+                </div>
+            `).join('');
+
+            const avg = days.reduce((sum, d) => sum + d.amount, 0) / days.length;
+            document.getElementById('tokenAverage').textContent = `ממוצע: $${avg.toFixed(1)}/יום`;
+
+            document.getElementById('tokenModal').classList.add('show');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('show');
+        }
+
+        function copyCommand() {
+            navigator.clipboard.writeText(currentCmd).then(() => {
+                showToast('📋 הפקודה הועתקה!');
+            });
+        }
+
+        function directLaunch() {
+            // Try to launch via server
+            if (isLocalServer) {
+                fetch('/launch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command: currentCmd })
+                }).then(() => {
+                    showToast('🚀 הפרויקט הופעל!');
+                    closeModal('cmdModal');
+                }).catch(() => {
+                    showToast('⚠️ העתק את הפקודה והפעל ידנית', true);
+                });
+            } else {
+                copyCommand();
+            }
+        }
+
+        function launchAll() {
+            currentCmd = 'bash ~/.claude/scripts/startup-claude.sh';
+            document.getElementById('cmdIcon').textContent = '🚀';
+            document.getElementById('cmdTitle').textContent = 'הפעל את כל הפרויקטים';
+            document.getElementById('cmdBox').textContent = currentCmd + '\n\nבחר "a" בתפריט להפעלת הכל';
+            document.getElementById('cmdModal').classList.add('show');
+        }
+
+        function openRegistry() {
+            currentCmd = 'code ~/.claude/projects-registry.json';
+            document.getElementById('cmdIcon').textContent = '📝';
+            document.getElementById('cmdTitle').textContent = 'ערוך רג\'יסטרי';
+            document.getElementById('cmdBox').textContent = currentCmd;
+            document.getElementById('cmdModal').classList.add('show');
+        }
+
+        function addProject() {
+            showToast('➕ ערוך את projects-registry.json להוספת פרויקט', false);
+            openRegistry();
+        }
+
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = 'toast show' + (isError ? ' error' : '');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // ============ Event Listeners ============
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', e => {
+                if (e.target.classList.contains('modal')) {
+                    e.target.classList.remove('show');
+                }
+            });
+        });
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
+            }
+        });
+
+        // ============ Night Session Banner ============
+        async function loadNightSession() {
+            try {
+                const res = await fetch('/api/agent-sessions');
+                const data = await res.json();
+                const banner = document.getElementById('nightBanner');
+
+                if (data.lastMission) {
+                    const m = data.lastMission;
+                    const rate = m.agentCount > 0 ? Math.round((m.successCount / m.agentCount) * 100) : 0;
+
+                    document.getElementById('nightBannerTitle').textContent = 'משימת לילה ' + m.date;
+                    document.getElementById('nightBannerSummary').textContent = m.summary ? m.summary.substring(0, 120) + (m.summary.length > 120 ? '...' : '') : m.agentCount + ' סוכנים עבדו';
+                    document.getElementById('nightAgents').textContent = m.agentCount;
+                    document.getElementById('nightSuccess').textContent = m.successCount;
+                    document.getElementById('nightRate').textContent = rate + '%';
+                    banner.classList.add('visible');
+                } else if (data.sessions && data.sessions.length > 0) {
+                    const s = data.sessions[0];
+                    document.getElementById('nightBannerTitle').textContent = 'סיכום יומי ' + s.date;
+                    document.getElementById('nightBannerSummary').textContent = (s.projectCount || 0) + ' פרויקטים עודכנו';
+                    banner.classList.add('visible');
+                }
+            } catch (e) {
+                console.error('Failed to load night session:', e);
+            }
+        }
+
+        // ============ Initialize ============
+        refreshData();
+        connectWebSocket();
+        initNotifications();
+        loadNightSession();
+        setInterval(refreshData, CONFIG.refreshInterval);
+
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) refreshData();
+        });
+
+        // ====== GUARDIAN PANEL ======
+        async function refreshGuardian() {
+            try {
+                const res = await fetch('/api/guardian');
+                const data = await res.json();
+
+                // Badge
+                const badge = document.getElementById('guardianBadge');
+                if (data.running) {
+                    badge.textContent = 'ACTIVE';
+                    badge.classList.remove('offline');
+                } else {
+                    badge.textContent = 'OFFLINE';
+                    badge.classList.add('offline');
+                }
+
+                // RAM bar
+                const totalMB = data.totalRAMMB || 16000;
+                const freeMB = data.freeRAMMB || 0;
+                const usedPct = Math.round((1 - freeMB / totalMB) * 100);
+                const freeGB = (freeMB / 1024).toFixed(1);
+                const totalGB = (totalMB / 1024).toFixed(1);
+
+                const fill = document.getElementById('guardianRamFill');
+                fill.style.width = usedPct + '%';
+                fill.className = 'guardian-ram-fill' +
+                    (freeGB < 1.5 ? ' critical' : freeGB < 3 ? ' warning' : '');
+
+                document.getElementById('guardianRamText').textContent =
+                    freeGB + 'GB / ' + totalGB + 'GB';
+
+                // Stats
+                document.getElementById('gFreeRAM').textContent = freeGB + 'GB';
+                document.getElementById('gFreeRAM').style.color =
+                    freeGB < 1.5 ? '#f44' : freeGB < 3 ? '#ff9800' : '#4CAF50';
+                document.getElementById('gSessions').textContent = data.sessionCount || 0;
+                document.getElementById('gMCPs').textContent = data.mcpCount || 0;
+
+                if (data.lastCheck) {
+                    const time = data.lastCheck.split(' ')[1] || data.lastCheck;
+                    document.getElementById('gLastCheck').textContent = time;
+                }
+
+                // Log
+                const logEl = document.getElementById('guardianLog');
+                if (data.recentLog && data.recentLog.length > 0) {
+                    logEl.innerHTML = data.recentLog.slice(-5).map(l =>
+                        '<div>' + l.replace(/\[CRIT\]/g, '<span style="color:#f44">[CRIT]</span>')
+                                    .replace(/\[WARN\]/g, '<span style="color:#ff9800">[WARN]</span>')
+                                    .replace(/\[OK\]/g, '<span style="color:#4CAF50">[OK]</span>') +
+                        '</div>'
+                    ).join('');
+                }
+            } catch (e) {
+                document.getElementById('guardianBadge').textContent = 'ERROR';
+                document.getElementById('guardianBadge').classList.add('offline');
+            }
+        }
+
+        async function guardianAction(action) {
+            const btn = event.target.closest('.guardian-btn');
+            if (btn) {
+                btn.style.opacity = '0.5';
+                btn.style.pointerEvents = 'none';
+            }
+            try {
+                await fetch('/api/guardian/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action })
+                });
+                // Show feedback
+                setTimeout(() => {
+                    if (btn) { btn.style.opacity = '1'; btn.style.pointerEvents = 'auto'; }
+                    refreshGuardian();
+                }, 2000);
+            } catch (e) {
+                if (btn) { btn.style.opacity = '1'; btn.style.pointerEvents = 'auto'; }
+                alert('Action failed: ' + e.message);
+            }
+        }
+
+        // Toggle guardian log on click
+        document.querySelector('.guardian-header').addEventListener('click', () => {
+            document.getElementById('guardianLog').classList.toggle('expanded');
+        });
+
+        async function openFolder(type) {
+            const folders = {
+                projects: 'C:\\Users\\eladj\\projects',
+                claude: 'C:\\Users\\eladj\\.claude',
+                dashboard: 'C:\\Users\\eladj\\.claude\\dashboard'
+            };
+            const folder = folders[type];
+            if (folder) {
+                await fetch('/api/guardian/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'open-folder', folder })
+                });
+            }
+        }
+
+        // Initial load + refresh every 30 seconds
+        refreshGuardian();
+        setInterval(refreshGuardian, 30000);
+
+        // Service Worker for PWA
+        if ('serviceWorker' in navigator && isLocalServer) {
+            navigator.serviceWorker.register('/sw.js').catch(() => {});
+        }
+    </script>
+</body>
+</html>
